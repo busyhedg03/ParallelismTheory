@@ -7,7 +7,7 @@
 double fill_array(double* arr, long long size) {
 	double sum = 0;
 	double temp = 2 * PI / size;
-#pragma acc data create(array[:size]) copy(sum) copyin(temp)
+#pragma acc data create(arr[:size]) copy(sum) copyin(temp)
 	{
 #pragma acc kernels
 		for (long long i = 0; i < size; i++)
