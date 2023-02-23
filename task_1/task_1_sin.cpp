@@ -18,7 +18,7 @@ void fill_array(T *arr, int size)
 	T step = 2 * M_PI / size;
 #pragma acc data copyin(step)
 	{
-#pragma acc parallel loop present(arr[:size])
+#pragma acc parallel loop
 		for (int i = 0; i < size; i++)
 		{
 			T x = i * step;
@@ -39,7 +39,7 @@ T sum_array(T *arr, int size)
 	return sum;
 }
 
-void print_array(double *arr, int size)
+void print_array(T *arr, int size)
 {
 #pragma acc exit data copyout(arr[:size])
 	std::cout.precision(2);
@@ -55,10 +55,10 @@ int main()
 	T *arr = new T[size];
 
 	auto begin_fill_array = std::chrono::steady_clock::now();
-#pragma acc enter data create(arr[:size])
 	fill_array(arr, size);
 	auto end_fill_array = std::chrono::steady_clock::now();
 
+#pragma acc enter data create(arr[:size])
 	auto begin_sum_array = std::chrono::steady_clock::now();
 	T sum = sum_array(arr, size);
 	auto end_sum_array = std::chrono::steady_clock::now();
