@@ -1,7 +1,7 @@
-g++ -O2 task_1_sin_double.cpp -o task1_cpu -lm
-pgc++ -acc=multicore -Minfo=accel -fast task_1_sin_double.cpp -o task1_cpu_multicore
-pgc++ -acc -Minfo=accel -fast task_1_sin_float.cpp -o task1_gpu_float
-pgc++ -acc -Minfo=accel -fast task_1_sin_double.cpp -o task1_gpu_double
+g++ -O2 task_1_sin.cpp -o task1_cpu -lm
+pgc++ -acc=multicore -Minfo=accel -fast task_1_sin.cpp -o task1_cpu_multicore
+pgc++ -acc -Minfo=accel -fast task_1_sin.cpp -_FLOAT -o task1_gpu_float
+pgc++ -acc -Minfo=accel -fast task_1_sin.cpp -o task1_gpu_double
 git checkout master
 git add README
 git commit -m "Added shared comment to readme"
