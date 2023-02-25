@@ -41,7 +41,7 @@ T sum_array(T *arr, int size)
 
 void print_array(T *arr, int size)
 {
-#pragma acc exit data copyout(arr[:size])
+#pragma acc data copyout(arr[:size])
 	std::cout.precision(2);
 	for (int i = 0; i < size; i += 1e5)
 		std::cout << arr[i] << " ";
