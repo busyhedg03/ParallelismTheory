@@ -3,6 +3,7 @@
 
 void print_array(double **arr, int size)
 {
+#pragma acc data copyout(arr[:size][:size])
     std::cout.precision(4);
     for (int i = 0; i < size; i += 1)
     {
@@ -15,16 +16,15 @@ void print_array(double **arr, int size)
 
 void initialize_array(double **A, int size)
 {
-    for (int i = 0; i < size; i++)
-        A[i] = new double[size];
-
+#pragma acc data present(A[:size][:size])
+#pragma acc data copyin(size)
     A[0][0] = 10.0;
     A[0][size - 1] = 20.0;
     A[size - 1][size - 1] = 30.0;
     A[size - 1][0] = 20.0;
 
     double step = 10.0 / (size - 1), step2 = step * 2;
-
+#pragma acc kernels
     for (int i = 1; i < size - 1; i++)
     {
         A[0][i] = A[0][i - 1] + step; // horizontal
@@ -40,9 +40,16 @@ int main()
 {
     // Initialization
     int net_size = 128, iter_max = 1e6;
+#pragma acc data copyin(net_size)
     double accuracy = 1e-6;
     double **Anew = new double *[net_size],
            **A = new double *[net_size];
+    for (int i = 0; i < net_size; i++)
+        A[i] = new double[net_size];
+    for (int i = 0; i < net_size; i++)
+        Anew[i] = new double[net_size];
+
+#pragma acc enter data create(A[:net_size][:net_size], Anew[:net_size][:net_size])
 
     // 10 20 30 20
     initialize_array(A, net_size);
@@ -52,14 +59,13 @@ int main()
 
     double error;
     int iter = 0;
-
+#pragma acc data copyin(iter, error)
     std::cout.precision(4);
-
-    do
-    {
+    do {
         error = 0.0;
-
+#pragma acc parallel loop present(A[:net_size][:net_size], Anew[:net_size][:net_size]) reduction(max:error)
         for (int j = 1; j < net_size - 1; j++)
+#pragma acc loop reduction(max:error)
             for (int i = 1; i < net_size - 1; i++)
             {
                 // Average
@@ -68,15 +74,21 @@ int main()
             }
 
         // copy array
+#pragma acc parallel loop
         for (int k = 0; k < net_size; k++)
+#pragma acc loop
             for (int j = 0; j < net_size; j++)
                 A[k][j] = Anew[k][j];
 
         if (!(iter % 1000))
+        {
+#pragma acc data copyout(iter, error)
             std::cout << "iter=" << iter << ",\terror=" << error << std::endl;
+        }
 
         iter++;
     } while (error > accuracy && iter < iter_max);
     // print_array(A, net_size);
+#pragma acc exit data delete(A[:net_size][:net_size], Anew[:net_size][:net_size])
     return 0;
 }
