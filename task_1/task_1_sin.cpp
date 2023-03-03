@@ -65,8 +65,8 @@ int main()
 	// print_array(arr, size); //to debug the contents of an array
 	std::cout.precision(17);
 	std::cout << "Sum = " << sum << std::endl;
-	delete[] arr;
 #pragma acc exit data delete (arr[:size])
+	delete[] arr;
 	auto end_main = std::chrono::steady_clock::now();
 	int time_spent_main = std::chrono::duration_cast<std::chrono::milliseconds>(end_main - begin_main).count();
 	int time_spent_fill_array = std::chrono::duration_cast<std::chrono::milliseconds>(end_fill_array - begin_fill_array).count();
