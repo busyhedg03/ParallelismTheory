@@ -13,7 +13,7 @@
 
 void print_array(T **A, int size)
 {
-#pragma acc data copyout(A[:size][:size])
+#pragma acc update host(A[:size][:size])
     std::cout.precision(4);
     for (int i = 0; i < size; i += 1)
     {
@@ -26,21 +26,21 @@ void print_array(T **A, int size)
 
 void initialize_array(T **A, int size)
 {
-#pragma acc data present(A[:size][:size])
     A[0][0] = 10.0;
     A[0][size - 1] = 20.0;
     A[size - 1][size - 1] = 30.0;
     A[size - 1][0] = 20.0;
+#pragma acc update device(A[:size][:size])
 
     T step = 10.0 / (size - 1);
-#pragma acc data copyin(step) // not helped
 #pragma acc parallel loop present(A[:size][:size])
     for (int i = 1; i < size - 1; i++)
     {
-        A[0][i] = A[0][0] + step * i; // horizontal
-        A[size - 1][i] = A[size - 1][0] + step * i; // horizontal
-        A[i][0] = A[0][0] + step * i; // vertical
-        A[i][size - 1] = A[0][size - 1] + step * i; // vertical
+        T addend = step * i;
+        A[0][i] = A[0][0] + addend; // horizontal
+        A[size - 1][i] = A[size - 1][0] + addend; // horizontal
+        A[i][0] = A[0][0] + addend; // vertical
+        A[i][size - 1] = A[0][size - 1] + addend; // vertical
     }
 }
 
@@ -50,7 +50,7 @@ void delete_2d_array(T **A, int size){
     delete[] A;
 }
 
-int main()
+int main(int argc, char *argv[])
 {
     // Initialization
     int net_size = 12, iter_max = 1e6;
@@ -68,17 +68,16 @@ int main()
     initialize_array(A, net_size);
     initialize_array(Anew, net_size);
 
-    print_array(A, net_size); //check initialization
+    //print_array(Anew, net_size); //check initialization
 
     T error;
     int iter = 0;
 #pragma acc enter data create(error)
     std::cout.precision(4);
     do {
-#pragma update device(error)
         error = 0.0;
-
-#pragma acc parallel loop collapse(2) present(A[:net_size][:net_size], Anew[:net_size][:net_size]) reduction(max:error)
+#pragma acc update device(error)
+#pragma acc parallel loop collapse(2) reduction(max:error)
         for (int j = 1; j < net_size - 1; j++)
             for (int i = 1; i < net_size - 1; i++)
             {
@@ -88,13 +87,13 @@ int main()
             }
 
         // copy array
-#pragma acc parallel loop collapse(2) present(A[:net_size][:net_size], Anew[:net_size][:net_size])
+#pragma acc parallel loop collapse(2)
         for (int k = 1; k < net_size-1; k++)
             for (int j = 1; j < net_size-1; j++)
                 A[k][j] = Anew[k][j];
 
-#pragma update host(error)
-        if (!(iter % 15))
+#pragma acc update host(error)
+        if (!(iter % 100))
             std::cout << "iter=" << iter << ",\terror=" << error << std::endl;
         iter++;
 
