@@ -50,17 +50,14 @@ void delete_2d_array(T **A, int size){
     delete[] A;
 }
 
-int main(int argc, char *argv[])
-{
+void calculate(int net_size = 12, int iter_max = 1e6, T accuracy = 1e-6, bool res=false) {
     // Initialization
-    int net_size = 12, iter_max = 1e6;
-    T accuracy = 1e-6;
     T **Anew = new T *[net_size],
-           **A = new T *[net_size];
-    for (int i = 0; i < net_size; i++)
-        A[i] = new T[net_size];
-    for (int i = 0; i < net_size; i++)
-        Anew[i] = new T[net_size];
+            **A = new T *[net_size];
+        for (int i = 0; i < net_size; i++)
+            A[i] = new T[net_size];
+        for (int i = 0; i < net_size; i++)
+            Anew[i] = new T[net_size];
 
 #pragma acc enter data create(A[:net_size][:net_size], Anew[:net_size][:net_size])
 
@@ -91,16 +88,44 @@ int main(int argc, char *argv[])
         for (int k = 1; k < net_size-1; k++)
             for (int j = 1; j < net_size-1; j++)
                 A[k][j] = Anew[k][j];
-
-#pragma acc update host(error)
-        if (!(iter % 100))
-            std::cout << "iter=" << iter << ",\terror=" << error << std::endl;
         iter++;
-
+#pragma acc update host(error)
     } while (error > accuracy && iter < iter_max);
-    print_array(A, net_size);
+    
+    std::cout << "iter=" << iter << ",\terror=" << error << std::endl;
+    if(res) print_array(A, net_size);
 #pragma acc exit data delete(A[:net_size][:net_size], Anew[:net_size][:net_size], error)
     delete_2d_array(A, net_size);
     delete_2d_array(Anew, net_size);
+}
+
+int main(int argc, char *argv[])
+{
+    int net_size = 12, iter_max = 1e6;
+    T accuracy = 1e-6;
+    bool res = false;
+    for(int arg = 1; arg < argc; arg++) {
+        std::string str = argv[arg];
+        if(!str.compare("-a")) {
+#ifdef _FLOAT
+            accuracy = std::stof(argv[arg + 1]);
+#else
+            accuracy = std::stod(argv[arg + 1]);
+#endif
+            arg++;
+        }
+        else if(!str.compare("-i")) {
+            iter_max = (int)std::stod(argv[arg + 1]); //1e6
+            arg++;
+        }
+        else if(!str.compare("-s")) {
+            net_size = std::stoi(argv[arg + 1]);
+            arg++;
+        }
+        else if(!str.compare("-res")) {
+            res = true;
+        }
+    }
+    calculate(net_size, iter_max, accuracy, res);
     return 0;
 }
