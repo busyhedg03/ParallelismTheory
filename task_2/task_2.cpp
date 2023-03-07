@@ -54,10 +54,10 @@ void calculate(int net_size = 12, int iter_max = 1e6, T accuracy = 1e-6, bool re
     // Initialization
     T **Anew = new T *[net_size],
             **A = new T *[net_size];
-        for (int i = 0; i < net_size; i++)
-            A[i] = new T[net_size];
-        for (int i = 0; i < net_size; i++)
-            Anew[i] = new T[net_size];
+    for (int i = 0; i < net_size; i++)
+        A[i] = new T[net_size];
+    for (int i = 0; i < net_size; i++)
+        Anew[i] = new T[net_size];
 
 #pragma acc enter data create(A[:net_size][:net_size], Anew[:net_size][:net_size])
 
@@ -84,10 +84,10 @@ void calculate(int net_size = 12, int iter_max = 1e6, T accuracy = 1e-6, bool re
             }
 
         // copy array
-#pragma acc parallel loop collapse(2)
-        for (int k = 1; k < net_size-1; k++)
-            for (int j = 1; j < net_size-1; j++)
-                A[k][j] = Anew[k][j];
+        double** temp = A;
+        A = Anew;
+        Anew = temp;
+        
         iter++;
 #pragma acc update host(error)
     } while (error > accuracy && iter < iter_max);
