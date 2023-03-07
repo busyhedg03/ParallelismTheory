@@ -19,9 +19,9 @@ void print_array(T **A, int size)
     {
         for (int j = 0; j < size; j += 1)
             std::cout << A[i][j] << "\t";
-        printf("\n");
+        std::cout << std::endl;
     }
-    printf("\n");
+    std::cout << std::endl;
 }
 
 void initialize_array(T **A, int size)
