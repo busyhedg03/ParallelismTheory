@@ -81,11 +81,11 @@ void calculate(int net_size = 12, int iter_max = 1e6, T accuracy = 1e-6, bool re
                 Anew[j][i] = (A[j][i + 1] + A[j][i - 1] + A[j - 1][i] + A[j + 1][i]) * 0.25;
                 error = MAX(error, std::abs(Anew[j][i] - A[j][i]));
             }
-        // copy array
-#pragma acc parallel loop collapse(2)
-        for (int k = 1; k < net_size-1; k++)
-            for (int j = 1; j < net_size-1; j++)
-                A[k][j] = Anew[k][j];
+
+        double** temp = A;
+        A = Anew;
+        Anew = temp;
+        
         iter++;
 #pragma acc update host(error)
     } while (error > accuracy && iter < iter_max);
