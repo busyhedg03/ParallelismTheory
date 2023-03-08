@@ -32,6 +32,7 @@ void initialize_array(T **A, int size)
 #pragma acc update device(A[:size][:size])
 
     T step = 10.0 / (size - 1);
+#pragma acc parallel loop present(A[:size][:size])
     for (int i = 1; i < size - 1; i++)
     {
         T addend = step * i;
@@ -40,7 +41,6 @@ void initialize_array(T **A, int size)
         A[i][0] = A[0][0] + addend; // vertical
         A[i][size - 1] = A[0][size - 1] + addend; // vertical
     }
-#pragma acc update device(A[:size][:size])
 }
 
 void delete_2d_array(T **A, int size){
@@ -73,20 +73,19 @@ void calculate(int net_size = 12, int iter_max = 1e6, T accuracy = 1e-6, bool re
     do {
         error = 0.0;
 #pragma acc update device(error)
+#pragma acc parallel loop collapse(2) reduction(max:error)
         for (int j = 1; j < net_size - 1; j++)
             for (int i = 1; i < net_size - 1; i++)
             {
                 // Average
                 Anew[j][i] = (A[j][i + 1] + A[j][i - 1] + A[j - 1][i] + A[j + 1][i]) * 0.25;
                 error = MAX(error, std::abs(Anew[j][i] - A[j][i]));
-#pragma acc update device(error)
             }
-#pragma acc update device(Anew[:net_size][:net_size])
         // copy array
+#pragma acc parallel loop collapse(2)
         for (int k = 1; k < net_size-1; k++)
             for (int j = 1; j < net_size-1; j++)
                 A[k][j] = Anew[k][j];
-#pragma acc update device(A[:net_size][:net_size])
         iter++;
 #pragma acc update host(error)
     } while (error > accuracy && iter < iter_max);
