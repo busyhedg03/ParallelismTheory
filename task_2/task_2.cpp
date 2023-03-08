@@ -12,6 +12,7 @@
 
 void print_array(T **A, int size)
 {
+#pragma acc update host(A[:size][:size])
     std::cout.precision(4);
     for (int i = 0; i < size; i += 1)
     {
@@ -28,6 +29,7 @@ void initialize_array(T **A, int size)
     A[0][size - 1] = 20.0;
     A[size - 1][size - 1] = 30.0;
     A[size - 1][0] = 20.0;
+#pragma acc update device(A[:size][:size])
 
     T step = 10.0 / (size - 1);
     for (int i = 1; i < size - 1; i++)
@@ -38,6 +40,7 @@ void initialize_array(T **A, int size)
         A[i][0] = A[0][0] + addend; // vertical
         A[i][size - 1] = A[0][size - 1] + addend; // vertical
     }
+#pragma acc update device(A[:size][:size])
 }
 
 void delete_2d_array(T **A, int size){
@@ -55,6 +58,8 @@ void calculate(int net_size = 12, int iter_max = 1e6, T accuracy = 1e-6, bool re
     for (int i = 0; i < net_size; i++)
         Anew[i] = new T[net_size];
 
+#pragma acc enter data create(A[:net_size][:net_size], Anew[:net_size][:net_size])
+
     // 10 20 30 20
     initialize_array(A, net_size);
     initialize_array(Anew, net_size);
@@ -63,25 +68,32 @@ void calculate(int net_size = 12, int iter_max = 1e6, T accuracy = 1e-6, bool re
 
     T error;
     int iter = 0;
+#pragma acc enter data create(error)
     std::cout.precision(4);
     do {
         error = 0.0;
+#pragma acc update device(error)
         for (int j = 1; j < net_size - 1; j++)
             for (int i = 1; i < net_size - 1; i++)
             {
                 // Average
                 Anew[j][i] = (A[j][i + 1] + A[j][i - 1] + A[j - 1][i] + A[j + 1][i]) * 0.25;
                 error = MAX(error, std::abs(Anew[j][i] - A[j][i]));
+#pragma acc update device(error)
             }
+#pragma acc update device(Anew[:net_size][:net_size])
         // copy array
         for (int k = 1; k < net_size-1; k++)
             for (int j = 1; j < net_size-1; j++)
                 A[k][j] = Anew[k][j];
+#pragma acc update device(A[:net_size][:net_size])
         iter++;
+#pragma acc update host(error)
     } while (error > accuracy && iter < iter_max);
     
     std::cout << "iter=" << iter << ",\terror=" << error << std::endl;
     if(res) print_array(A, net_size);
+#pragma acc exit data delete(A[:net_size][:net_size], Anew[:net_size][:net_size], error)
     delete_2d_array(A, net_size);
     delete_2d_array(Anew, net_size);
 }
