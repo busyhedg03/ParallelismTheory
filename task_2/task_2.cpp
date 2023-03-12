@@ -25,6 +25,10 @@ void print_array(T **A, int size)
 
 void initialize_array(T **A, int size)
 {
+#pragma acc parallel loop collapse(2) present(A[:size][:size])
+    for (int i = 1; i < size - 1; i++)
+        for (int j = 1; j < size - 1; j++)
+            A[i][j] = 20; // mode
     A[0][0] = 10.0;
     A[0][size - 1] = 20.0;
     A[size - 1][size - 1] = 30.0;
@@ -36,10 +40,10 @@ void initialize_array(T **A, int size)
     for (int i = 1; i < size - 1; i++)
     {
         T addend = step * i;
-        A[0][i] = A[0][0] + addend; // horizontal
-        A[size - 1][i] = A[size - 1][0] + addend; // horizontal
-        A[i][0] = A[0][0] + addend; // vertical
-        A[i][size - 1] = A[0][size - 1] + addend; // vertical
+        A[0][i] = A[0][0] + addend; // horizontal left
+        A[size - 1][i] = A[size - 1][0] + addend; // horizontal right
+        A[i][0] = A[0][0] + addend; // vertical left
+        A[i][size - 1] = A[0][size - 1] + addend; // vertical right
     }
 }
 
@@ -49,22 +53,18 @@ void delete_2d_array(T **A, int size){
     delete[] A;
 }
 
-void calculate(int net_size = 12, int iter_max = 1e6, T accuracy = 1e-6, bool res=false) {
+void calculate(int net_size=12, int iter_max=1e6, T accuracy=1e-6, bool res=false) {
     // Initialization
-    T **Anew = new T *[net_size],
-            **A = new T *[net_size];
+    T **A = new T *[net_size];
     for (int i = 0; i < net_size; i++)
         A[i] = new T[net_size];
-    for (int i = 0; i < net_size; i++)
-        Anew[i] = new T[net_size];
 
-#pragma acc enter data create(A[:net_size][:net_size], Anew[:net_size][:net_size])
+#pragma acc enter data create(A[:net_size][:net_size])
 
     // 10 20 30 20
     initialize_array(A, net_size);
-    initialize_array(Anew, net_size);
 
-    //print_array(Anew, net_size); //check initialization
+    //print_array(A, net_size); //check initialization
 
     T error;
     int iter = 0;
@@ -73,18 +73,15 @@ void calculate(int net_size = 12, int iter_max = 1e6, T accuracy = 1e-6, bool re
     do {
         error = 0.0;
 #pragma acc update device(error)
-#pragma acc parallel loop collapse(2) reduction(max:error)
+#pragma acc parallel loop collapse(2) independent reduction(max:error)
         for (int j = 1; j < net_size - 1; j++)
             for (int i = 1; i < net_size - 1; i++)
             {
+                double temp = A[j][i];
                 // Average
-                Anew[j][i] = (A[j][i + 1] + A[j][i - 1] + A[j - 1][i] + A[j + 1][i]) * 0.25;
-                error = MAX(error, std::abs(Anew[j][i] - A[j][i]));
+                A[j][i] = (A[j][i + 1] + A[j][i - 1] + A[j - 1][i] + A[j + 1][i]) * 0.25;
+                error = MAX(error, std::abs(temp - A[j][i]));
             }
-
-        double** temp = A;
-        A = Anew;
-        Anew = temp;
         
         iter++;
 #pragma acc update host(error)
@@ -92,9 +89,8 @@ void calculate(int net_size = 12, int iter_max = 1e6, T accuracy = 1e-6, bool re
     
     std::cout << "iter=" << iter << ",\terror=" << error << std::endl;
     if(res) print_array(A, net_size);
-#pragma acc exit data delete(A[:net_size][:net_size], Anew[:net_size][:net_size], error)
+#pragma acc exit data delete(A[:net_size][:net_size], error)
     delete_2d_array(A, net_size);
-    delete_2d_array(Anew, net_size);
 }
 
 int main(int argc, char *argv[])
